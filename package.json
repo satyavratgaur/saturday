@@ -6,9 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "node scripts/seed.mjs",
+    "codegen": "convex codegen"
   },
   "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@convex-dev/auth": "^0.0.95",
+    "convex": "^1.46.0",
+    "html-to-image": "^1.11.13",
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8"
