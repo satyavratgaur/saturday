@@ -1,19 +1,118 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0b0b0f;
-  --foreground: #f4f4f5;
+/*
+ * Saturday theme. Two moods, same token names:
+ *   day   — Sunday → Saturday 6pm: warm cream, solid sunrise cards
+ *   night — Saturday 6pm → Sunday 6am, and the recap: indigo, neon gradient cards
+ * <html data-theme="day|night"> is set before paint by the script in layout.tsx.
+ */
+:root,
+[data-theme="day"] {
+  --bg: #fff4e6;
+  --ink: #1f1a17;
+  --muted: #6b5e55;
+  --faint: #a39488;
+  --surface: #ffffff;
+  --surface-2: #fbe8d3;
+  --line: #ead7c3;
+  --accent: #1f1a17;
+  --accent-ink: #fff4e6;
+  --coin: #ffd23f;
+  --sun: #ff6b35;
+  --ok: #2ec27e;
+  --danger: #e5484d;
+  --glow: none;
+  --hero: #1f1a17;
+  --hero-ink: #fff4e6;
+
+  --card-ink: #1f1a17;
+  --everyday-bg: #2ec27e;
+  --stretch-bg: #ff6b35;
+  --wildcard-bg: #e040a0;
+  color-scheme: light;
+}
+
+[data-theme="night"] {
+  --bg: #120b2e;
+  --ink: #f6f1ff;
+  --muted: #b7a9e0;
+  --faint: #7e6fb0;
+  --surface: #1d1442;
+  --surface-2: #2a1d5c;
+  --line: #33266b;
+  --accent: #ffe600;
+  --accent-ink: #120b2e;
+  --coin: #ffe600;
+  --sun: #ff4cd2;
+  --ok: #00f5a0;
+  --danger: #ff5c7a;
+  --glow: 0 0 24px rgba(255, 230, 0, 0.55);
+  --hero: #2a1d5c;
+  --hero-ink: #f6f1ff;
+
+  --card-ink: #140d33;
+  --everyday-bg: linear-gradient(135deg, #00f5a0 0%, #00d9f5 100%);
+  --stretch-bg: linear-gradient(135deg, #ff8a00 0%, #ff2e63 100%);
+  --wildcard-bg: linear-gradient(135deg, #b44cff 0%, #ff4cd2 100%);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-coin: var(--coin);
+  --color-sun: var(--sun);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+  --color-card-ink: var(--card-ink);
+  --color-hero: var(--hero);
+  --color-hero-ink: var(--hero-ink);
+  --font-display: var(--font-bricolage), ui-rounded, -apple-system, system-ui, sans-serif;
 }
 
-html { color-scheme: dark; }
+html {
+  background: var(--bg);
+}
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+.card-everyday { background: var(--everyday-bg); }
+.card-stretch { background: var(--stretch-bg); }
+.card-wildcard { background: var(--wildcard-bg); }
+
+.coin {
+  background: var(--coin);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-ink) 85%, transparent), var(--glow);
+}
+
+/* The "something is hidden here" tile for photos you haven't unlocked. */
+.locked-tile {
+  background:
+    radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--sun) 70%, transparent), transparent 60%),
+    radial-gradient(circle at 70% 70%, color-mix(in srgb, var(--coin) 70%, transparent), transparent 55%),
+    var(--card-ink);
+  filter: saturate(1.2);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px) rotate(var(--tilt, 0deg)); }
+  to { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)); }
+}
+.rise { animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+  body { transition: none; }
 }

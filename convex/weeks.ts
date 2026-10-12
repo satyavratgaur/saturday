@@ -14,20 +14,26 @@ function shuffle<T>(arr: T[]) {
   return a;
 }
 
-// 6 candidates: 2 from each of the squad's top 3 interests by member count.
-// Each interest's pair has 2 different types. Fill from remaining interests if <3.
+// 6 candidates: 2 from each of the squad's 3 interests (each pair has 2 different types).
+// Older squads without interests fall back to the top 3 member interests.
 async function dealCards(ctx: MutationCtx, squadId: Id<"squads">) {
-  const ms = await ctx.db.query("memberships").withIndex("by_squad", (q) => q.eq("squadId", squadId)).collect();
-  const counts = new Map<string, number>();
-  for (const m of ms) {
-    const u = await ctx.db.get(m.userId);
-    for (const i of u?.interests ?? []) counts.set(i, (counts.get(i) ?? 0) + 1);
+  const squad = await ctx.db.get(squadId);
+  let top: string[] = (squad?.interests ?? []).filter((i) => (INTERESTS as readonly string[]).includes(i)).slice(0, 3);
+  if (top.length === 0) {
+    const ms = await ctx.db.query("memberships").withIndex("by_squad", (q) => q.eq("squadId", squadId)).collect();
+    const counts = new Map<string, number>();
+    for (const m of ms) {
+      const u = await ctx.db.get(m.userId);
+      for (const i of u?.interests ?? []) counts.set(i, (counts.get(i) ?? 0) + 1);
+    }
+    top = [...INTERESTS]
+      .map((i, idx) => ({ i, n: counts.get(i) ?? 0, idx }))
+      .sort((a, b) => b.n - a.n || a.idx - b.idx)
+      .filter((r) => r.n > 0)
+      .slice(0, 3)
+      .map((r) => r.i);
   }
-  const ranked = [...INTERESTS]
-    .map((i, idx) => ({ i, n: counts.get(i) ?? 0, idx }))
-    .sort((a, b) => b.n - a.n || a.idx - b.idx);
-  const top = ranked.filter((r) => r.n > 0).slice(0, 3).map((r) => r.i);
-  const rest = shuffle(ranked.filter((r) => !top.includes(r.i)).map((r) => r.i));
+  const rest = shuffle(INTERESTS.filter((i) => !top.includes(i)));
   while (top.length < 3 && rest.length) top.push(rest.shift()!);
 
   const allCards = await ctx.db.query("cards").collect();
@@ -101,7 +107,7 @@ export async function optedInUserIds(ctx: QueryCtx | MutationCtx, weekId: Id<"we
 export const draft = query({
   args: { squadId: v.id("squads") },
   handler: async (ctx, { squadId }) => {
-    const { user, isCreator } = await requireMember(ctx, squadId);
+    const { user, squad, isCreator } = await requireMember(ctx, squadId);
     const week = await currentWeek(ctx, squadId);
     if (!week) return { week: null };
     const cands = await ctx.db.query("candidates").withIndex("by_week", (q) => q.eq("weekId", week._id)).collect();
@@ -137,6 +143,8 @@ export const draft = query({
       myForfeit: myForfeit?.text ?? "",
       isCreator,
       canRedeal: isCreator && opted.size === 0,
+      squadName: squad.name,
+      inviteCode: squad.inviteCode,
     };
   },
 });

@@ -70,9 +70,8 @@ export const weekView = query({
           userId: s.userId,
           name: u?.name ?? "?",
           isMe: s.userId === user._id,
-          // NOTE: URL is sent even when locked; the blur is client-side.
-          // Good enough for the demo; hide server-side if this ever ships.
-          url: await ctx.storage.getUrl(s.storageId),
+          // Locked photos never leave the server: no URL until you've posted yours.
+          url: unlocked || s.userId === user._id ? await ctx.storage.getUrl(s.storageId) : null,
           createdAt: s.createdAt,
           first: s === subs[0],
         });
@@ -93,7 +92,7 @@ export const weekView = query({
     return {
       squadName: squad.name,
       chatUrl: squad.chatUrl ? "https://" + squad.chatUrl : null,
-      chatPlatform: squad.chatPlatform,
+      chatPlatform: squad.chatPlatform ?? null,
       inviteCode: squad.inviteCode,
       isCreator,
       me: user._id,

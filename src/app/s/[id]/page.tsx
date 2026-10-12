@@ -6,16 +6,40 @@ import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { Gate } from "@/components/Gate";
 import { Card, CardData } from "@/components/Card";
-import { Button, ErrorText, Input, Screen, Spinner, errMsg } from "@/components/ui";
+import { useInvite } from "@/components/Invite";
+import { Button, ErrorText, Input, Screen, Sheet, Spinner, errMsg } from "@/components/ui";
 import { PLATFORM_LABEL } from "@/lib/interests";
 
 export default function WeekPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <Gate redirectTo={`/s/${id}`}>
+    <Gate>
       <Week squadId={id as Id<"squads">} />
     </Gate>
   );
+}
+
+/** Next Saturday 20:00 local. */
+function nextReveal(now = new Date()) {
+  const d = new Date(now);
+  d.setHours(20, 0, 0, 0);
+  const add = (6 - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + add);
+  if (d <= now) d.setDate(d.getDate() + 7);
+  return d;
+}
+
+function useCountdown() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const ms = nextReveal(now).getTime() - now.getTime();
+  const d = Math.floor(ms / 86_400_000);
+  const h = Math.floor((ms % 86_400_000) / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 function Week({ squadId }: { squadId: Id<"squads"> }) {
@@ -25,7 +49,8 @@ function Week({ squadId }: { squadId: Id<"squads"> }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [optIn, setOptIn] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const countdown = useCountdown();
+  const invite = useInvite(data && "inviteCode" in data ? (data.inviteCode ?? "") : "", data?.squadName ?? "");
 
   useEffect(() => {
     if (data && (data.week === null || data.week.status === "drafting")) router.replace(`/s/${squadId}/draft`);
@@ -33,8 +58,6 @@ function Week({ squadId }: { squadId: Id<"squads"> }) {
   }, [data, router, squadId]);
 
   if (!data || !data.week || data.week.status !== "live") return <Spinner />;
-
-  const inviteUrl = typeof window !== "undefined" ? `${window.location.origin}/join/${data.inviteCode}` : "";
 
   async function doEnd() {
     setErr("");
@@ -48,42 +71,37 @@ function Week({ squadId }: { squadId: Id<"squads"> }) {
     }
   }
 
-  async function copyInvite() {
-    try {
-      if (navigator.share) await navigator.share({ title: data!.squadName, text: `Join our squad on Squad Cards`, url: inviteUrl });
-      else {
-        await navigator.clipboard.writeText(inviteUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }
-    } catch {
-      /* cancelled */
-    }
-  }
-
   const myDone = data.cards.filter((c) => c.unlocked).length;
 
   return (
     <Screen back="/squads" title={data.squadName}>
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-white/50">
-          Week {data.week.weekNo} · {data.optedCount} in
-          {data.optedIn && ` · you ${myDone}/${data.cards.length}`}
-        </p>
-        <button className="text-sm text-white/60 underline" onClick={copyInvite}>
-          {copied ? "Copied" : "Invite"}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-widest text-sun">Week {data.week.weekNo} · Live</p>
+          <p className="text-sm font-semibold text-muted">
+            {data.optedCount} playing{data.optedIn && ` · you ${myDone}/${data.cards.length}`}
+          </p>
+        </div>
+        <button className="shrink-0 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-semibold" onClick={invite.share}>
+          {invite.copied ? "Copied ✓" : "＋ Invite"}
         </button>
       </div>
 
+      <div className="mt-4 flex items-center justify-between rounded-3xl bg-hero px-5 py-4 text-hero-ink">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-coin">Results drop</p>
+          <p className="font-display text-xl font-extrabold">Saturday 8pm</p>
+        </div>
+        <p className="font-display text-3xl font-extrabold tabular-nums">{countdown}</p>
+      </div>
+
       {!data.optedIn && (
-        <div className="mt-4 rounded-3xl bg-amber-400/10 p-4 ring-1 ring-amber-400/30">
-          <p className="font-semibold text-amber-200">You&apos;re spectating this week</p>
-          <p className="mt-1 text-sm text-amber-100/70">Add a forfeit to the pool to opt in and post photos.</p>
-          <div className="mt-3">
-            <Button variant="secondary" onClick={() => setOptIn(true)}>
-              Opt in
-            </Button>
-          </div>
+        <div className="mt-4 rounded-3xl bg-coin p-4 text-card-ink">
+          <p className="font-display text-lg font-extrabold">You&apos;re spectating this week</p>
+          <p className="mt-1 text-sm">Add a forfeit to the pool to get in and start posting.</p>
+          <button className="mt-3 w-full rounded-2xl bg-card-ink py-3 font-bold text-white" onClick={() => setOptIn(true)}>
+            I&apos;m in
+          </button>
         </div>
       )}
 
@@ -104,13 +122,13 @@ function Week({ squadId }: { squadId: Id<"squads"> }) {
 
       <div className="mt-6 space-y-3">
         {data.chatUrl ? (
-          <a href={data.chatUrl} target="_blank" rel="noreferrer" className="block w-full rounded-2xl bg-white/10 px-4 py-3.5 text-center text-base font-semibold">
-            Open squad chat ({PLATFORM_LABEL[data.chatPlatform]})
+          <a href={data.chatUrl} target="_blank" rel="noreferrer" className="block w-full rounded-2xl bg-surface-2 px-4 py-4 text-center font-bold">
+            Open squad chat{data.chatPlatform ? ` (${PLATFORM_LABEL[data.chatPlatform]})` : ""}
           </a>
         ) : null}
         {data.isCreator && (
-          <Button variant="danger" onClick={doEnd} disabled={busy}>
-            {busy ? "Ending…" : "End week"}
+          <Button variant="ghost" onClick={doEnd} disabled={busy}>
+            {busy ? "Ending…" : "End the week now (creator)"}
           </Button>
         )}
         <ErrorText>{err}</ErrorText>
@@ -177,8 +195,8 @@ function WeekCard({
       progress={{ n: c.doneCount, m: optedCount }}
       footer={
         locked ? (
-          <button onClick={onNeedOptIn} className="flex items-center gap-2 text-sm font-medium text-white/70">
-            <LockIcon /> Opt in to play
+          <button onClick={onNeedOptIn} className="flex items-center gap-2 rounded-xl bg-white/40 px-3 py-2 text-sm font-bold">
+            <LockIcon /> Get in to play
           </button>
         ) : (
           <>
@@ -186,8 +204,8 @@ function WeekCard({
             <button
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.97] disabled:opacity-50 ${
-                mine ? "bg-white/10 text-white" : "bg-white text-black"
+              className={`rounded-xl px-4 py-2.5 text-sm font-bold transition active:scale-[0.97] disabled:opacity-50 ${
+                mine ? "bg-white/40 text-card-ink" : "bg-card-ink text-white"
               }`}
             >
               {uploading ? "Uploading…" : mine ? "Retake" : "📷 Post photo"}
@@ -205,7 +223,7 @@ function WeekCard({
         </div>
       )}
       {!mine && others.length > 0 && !locked && (
-        <p className="mt-2 text-xs text-white/50">
+        <p className="mt-2 text-sm font-semibold">
           {others.length} photo{others.length === 1 ? "" : "s"} hidden until you post yours.
         </p>
       )}
@@ -215,17 +233,17 @@ function WeekCard({
 
 function Photo({ p, blurred }: { p: WeekCardT["photos"][number]; blurred: boolean }) {
   return (
-    <div className="relative aspect-square overflow-hidden rounded-xl bg-white/10">
-      {p.url && (
+    <div className={`relative aspect-square overflow-hidden rounded-xl ${blurred || !p.url ? "locked-tile" : "bg-card-ink/20"}`}>
+      {!blurred && p.url && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={p.url} alt="" className={`h-full w-full object-cover ${blurred ? "scale-110 blur-xl" : ""}`} draggable={false} />
+        <img src={p.url} alt="" className="h-full w-full object-cover" draggable={false} />
       )}
       {blurred && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+        <div className="absolute inset-0 flex items-center justify-center text-white">
           <LockIcon />
         </div>
       )}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-4 text-[11px] font-medium">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-4 text-[11px] font-bold text-white">
         {p.isMe ? "You" : p.name}
         {p.first ? " ⚡" : ""}
       </div>
@@ -235,7 +253,7 @@ function Photo({ p, blurred }: { p: WeekCardT["photos"][number]; blurred: boolea
 
 function LockIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-current">
       <rect x="4" y="11" width="16" height="10" rx="2" />
       <path d="M8 11V7a4 4 0 0 1 8 0v4" />
     </svg>
@@ -259,21 +277,18 @@ function OptInSheet({ weekId, initial, onClose }: { weekId: Id<"weeks">; initial
     }
   }
   return (
-    <div className="fixed inset-0 z-20 flex items-end bg-black/60" onClick={onClose}>
-      <div className="mx-auto w-full max-w-md rounded-t-3xl bg-[#15151b] p-5 pb-8 ring-1 ring-white/10" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl font-bold">Opt in for this week</h2>
-        <p className="mt-1 text-sm text-white/60">Add a forfeit to the pool. Whoever finishes last draws one. You could draw your own.</p>
-        <div className="mt-4">
-          <Input placeholder="e.g. Sing in the group voice chat" value={text} onChange={(e) => setText(e.target.value)} maxLength={140} autoFocus />
-        </div>
-        <div className="mt-4">
-          <Button onClick={go} disabled={busy || !text.trim()}>
-            {busy ? "Joining…" : "I'm in"}
-          </Button>
-          <ErrorText>{err}</ErrorText>
-        </div>
+    <Sheet onClose={onClose}>
+      <h2 className="font-display text-2xl font-extrabold tracking-tight">Get in this week</h2>
+      <p className="mt-1 text-muted">Add a forfeit to the pool. Whoever finishes last on Saturday draws one. You could draw your own.</p>
+      <div className="mt-4">
+        <Input placeholder="e.g. Sing in the group voice chat" value={text} onChange={(e) => setText(e.target.value)} maxLength={140} autoFocus />
       </div>
-    </div>
+      <div className="mt-4">
+        <Button onClick={go} disabled={busy || !text.trim()}>
+          {busy ? "Joining…" : "I'm in"}
+        </Button>
+        <ErrorText>{err}</ErrorText>
+      </div>
+    </Sheet>
   );
 }
-

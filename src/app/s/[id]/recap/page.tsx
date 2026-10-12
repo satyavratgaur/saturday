@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { Gate } from "@/components/Gate";
-import { Button, ErrorText, Screen, Spinner, errMsg } from "@/components/ui";
+import { Button, ErrorText, Screen, Spinner, Wordmark, errMsg } from "@/components/ui";
+import { ForceTheme } from "@/components/Theme";
 
 export default function RecapPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <Gate redirectTo={`/s/${id}/recap`}>
+    <Gate>
+      <ForceTheme theme="night" />
       <Recap squadId={id as Id<"squads">} />
     </Gate>
   );
@@ -29,7 +31,7 @@ function Recap({ squadId }: { squadId: Id<"squads"> }) {
   if (r === null)
     return (
       <Screen title="No recap yet" back={`/s/${squadId}`}>
-        <p className="text-white/60">The week hasn&apos;t ended.</p>
+        <p className="text-muted">Results drop Saturday 8pm.</p>
       </Screen>
     );
 
@@ -41,7 +43,7 @@ function Recap({ squadId }: { squadId: Id<"squads"> }) {
     setErr("");
     try {
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(ref.current, { pixelRatio: 2, backgroundColor: "#0b0b0f", cacheBust: true });
+      const dataUrl = await toPng(ref.current, { pixelRatio: 2, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#120b2e", cacheBust: true });
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], `${r!.squadName}-week-${r!.weekNo}.png`, { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
@@ -72,73 +74,75 @@ function Recap({ squadId }: { squadId: Id<"squads"> }) {
 
   return (
     <Screen back="/squads">
-      <div ref={ref} className="rounded-3xl bg-[#0b0b0f] p-1">
-        <p className="text-sm font-medium uppercase tracking-widest text-white/50">
-          {r.squadName} · Week {r.weekNo}
-        </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">
-          Squad: {r.totalDone} of {total} done
+      <div ref={ref} className="rounded-[2rem] bg-bg p-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold uppercase tracking-widest text-sun">
+            {r.squadName} · Week {r.weekNo}
+          </p>
+          <Wordmark className="text-base" />
+        </div>
+        <h1 className="mt-2 font-display text-[2.6rem] font-extrabold leading-[0.95] tracking-tight">
+          {r.totalDone} of {total}
+          <span className="block text-muted">cards done</span>
         </h1>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full bg-emerald-400" style={{ width: `${total ? Math.min(100, (100 * r.totalDone) / total) : 0}%` }} />
+        <div className="mt-3 h-3 overflow-hidden rounded-full bg-surface-2">
+          <div className="card-everyday h-full rounded-full" style={{ width: `${total ? Math.min(100, (100 * r.totalDone) / total) : 0}%` }} />
         </div>
 
         {r.crown ? (
-          <div className="mt-6 overflow-hidden rounded-3xl bg-amber-400/10 ring-1 ring-amber-400/30">
+          <div className="mt-6 overflow-hidden rounded-[1.75rem] bg-coin text-card-ink shadow-[0_0_40px_-8px_var(--coin)]">
             {r.crown.photoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={r.crown.photoUrl} alt="" className="aspect-[4/3] w-full object-cover" crossOrigin="anonymous" />
             )}
-            <div className="p-4">
-              <p className="text-sm font-medium uppercase tracking-widest text-amber-300">👑 Crown</p>
-              <p className="text-2xl font-bold">{r.crown.name}</p>
+            <div className="p-5">
+              <p className="text-sm font-bold uppercase tracking-widest">👑 The crown</p>
+              <p className="font-display text-4xl font-extrabold tracking-tight">{r.crown.name}</p>
             </div>
           </div>
         ) : (
-          <div className="mt-6 rounded-3xl bg-white/[0.06] p-4 ring-1 ring-white/10">
-            <p className="text-lg font-semibold">Nobody posted. No crown this week.</p>
+          <div className="mt-6 rounded-3xl bg-surface p-5 ring-1 ring-line">
+            <p className="font-display text-xl font-extrabold">Nobody posted. No crown this week.</p>
           </div>
         )}
 
-        <div className="mt-4 rounded-3xl bg-white/[0.06] p-4 ring-1 ring-white/10">
-          <p className="text-sm font-medium uppercase tracking-widest text-white/50">Standings</p>
-          <ol className="mt-2 divide-y divide-white/10">
+        <div className="mt-4 rounded-3xl bg-surface p-5 ring-1 ring-line">
+          <p className="text-sm font-bold uppercase tracking-widest text-muted">Standings</p>
+          <ol className="mt-2 divide-y divide-line">
             {r.standings.map((s, i) => (
-              <li key={s.userId} className="flex items-center justify-between py-2">
+              <li key={s.userId} className="flex items-center justify-between py-2.5">
                 <span className="flex items-center gap-3">
-                  <span className="w-5 text-right tabular-nums text-white/40">{i + 1}</span>
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-xs text-white/40">
+                  <span className="w-5 text-right font-display font-extrabold tabular-nums text-faint">{i + 1}</span>
+                  <span className="font-semibold">{s.name}</span>
+                  <span className="text-xs text-muted">
                     {s.done}/{r.cardCount}
                   </span>
                 </span>
-                <span className="font-semibold tabular-nums">{s.points} pts</span>
+                <span className="font-display font-extrabold tabular-nums">{s.points} pts</span>
               </li>
             ))}
-            {r.standings.length === 0 && <li className="py-2 text-white/50">No one opted in.</li>}
+            {r.standings.length === 0 && <li className="py-2 text-muted">No one opted in.</li>}
           </ol>
         </div>
 
         {r.cleanSweep ? (
-          <div className="mt-4 rounded-3xl bg-emerald-400/10 p-4 ring-1 ring-emerald-400/30">
-            <p className="text-lg font-semibold text-emerald-200">Clean sweep. Everyone did all three. No forfeit.</p>
+          <div className="card-everyday mt-4 rounded-3xl p-5 text-card-ink">
+            <p className="font-display text-xl font-extrabold">Clean sweep. Everyone did all three. No forfeit.</p>
           </div>
         ) : r.loser ? (
-          <div className="mt-4 rounded-3xl bg-red-500/10 p-4 ring-1 ring-red-500/30">
-            <p className="text-sm font-medium uppercase tracking-widest text-red-300">
-              Forfeit{r.coinFlip ? " · decided by coin flip 🪙" : ""}
-            </p>
-            <p className="text-2xl font-bold">{r.loser.name}</p>
+          <div className="card-stretch mt-4 rounded-3xl p-5 text-card-ink">
+            <p className="text-sm font-bold uppercase tracking-widest">Forfeit{r.coinFlip ? " · decided by coin flip 🪙" : ""}</p>
+            <p className="font-display text-3xl font-extrabold">{r.loser.name}</p>
             {r.forfeit ? (
-              <p className="mt-2 text-lg text-white/90">
-                “{r.forfeit.text}”<span className="block text-sm text-white/40">— {r.forfeit.authorName}</span>
+              <p className="mt-2 text-lg font-semibold">
+                “{r.forfeit.text}”<span className="block text-sm font-medium opacity-70">— {r.forfeit.authorName}</span>
               </p>
             ) : (
-              <p className="mt-2 text-white/60">The pool was empty. The squad decides.</p>
+              <p className="mt-2">The pool was empty. The squad decides.</p>
             )}
           </div>
         ) : null}
-        <p className="mt-4 text-center text-xs text-white/30">squad cards</p>
+        <p className="mt-4 text-center text-xs text-faint">saturday.place</p>
       </div>
 
       <div className="mt-6 space-y-3">

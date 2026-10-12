@@ -24,13 +24,12 @@ export default defineSchema({
     name: v.string(),
     creatorId: v.id("users"),
     inviteCode: v.string(),
-    chatPlatform: v.union(
-      v.literal("whatsapp"),
-      v.literal("telegram"),
-      v.literal("discord"),
-      v.literal("imessage"),
+    chatPlatform: v.optional(
+      v.union(v.literal("whatsapp"), v.literal("telegram"), v.literal("discord"), v.literal("imessage")),
     ),
     chatUrl: v.optional(v.string()),
+    // The squad's 3 interests drive the weekly deal. Older squads fall back to member interests.
+    interests: v.optional(v.array(v.string())),
   })
     .index("by_inviteCode", ["inviteCode"])
     .index("by_chatUrl", ["chatUrl"]),

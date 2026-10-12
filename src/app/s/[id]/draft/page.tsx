@@ -6,12 +6,13 @@ import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { Gate } from "@/components/Gate";
 import { Card, CardData } from "@/components/Card";
-import { Button, ErrorText, Input, Screen, Spinner, errMsg } from "@/components/ui";
+import { useInvite } from "@/components/Invite";
+import { BottomBar, Button, ErrorText, Input, Screen, Spinner, errMsg } from "@/components/ui";
 
 export default function DraftPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <Gate redirectTo={`/s/${id}/draft`}>
+    <Gate>
       <Draft squadId={id as Id<"squads">} />
     </Gate>
   );
@@ -28,6 +29,7 @@ function Draft({ squadId }: { squadId: Id<"squads"> }) {
   const [forfeitDraft, setForfeit_] = useState<string | null>(null); // null = untouched, show server value
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const invite = useInvite(data && "inviteCode" in data ? (data.inviteCode ?? "") : "", data && "squadName" in data ? (data.squadName ?? "") : "");
 
   // No week yet (or last one done) → deal.
   useEffect(() => {
@@ -68,22 +70,44 @@ function Draft({ squadId }: { squadId: Id<"squads"> }) {
   }
 
   return (
-    <Screen title={`Week ${data.week.weekNo} draft`} back="/squads">
-      <p className="text-white/60">
-        Six candidates. Yes or no on each. The top three become this week&apos;s cards. Voting opts you in.
+    <Screen title={data.squadName} back="/squads">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-widest text-sun">Week {data.week.weekNo} · Draft</p>
+          <h2 className="font-display text-3xl font-extrabold leading-tight tracking-tight">Pick the week</h2>
+        </div>
+        <button className="shrink-0 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-semibold" onClick={invite.share}>
+          {invite.copied ? "Copied ✓" : "＋ Invite"}
+        </button>
+      </div>
+      <p className="mt-2 text-muted">
+        Yes on the cards you&apos;d actually do. The top three become this week&apos;s cards. Voting puts you in for the week.
       </p>
-      <div className="mt-2 flex items-center justify-between text-sm">
-        <span className="tabular-nums text-white/50">
+
+      {data.memberCount < 3 && (
+        <div className="mt-4 rounded-3xl bg-hero p-4 text-hero-ink">
+          <p className="font-display text-lg font-extrabold">Saturday is better with 3+</p>
+          <p className="mt-1 text-sm opacity-80">
+            It&apos;s just {data.memberCount === 1 ? "you" : `${data.memberCount} of you`} so far. Drop the invite link in your group chat.
+          </p>
+          <button className="mt-3 w-full rounded-2xl bg-coin py-3 font-bold text-card-ink" onClick={invite.share}>
+            {invite.copied ? "Link copied ✓" : "Share invite link"}
+          </button>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between text-sm">
+        <span className="font-semibold tabular-nums text-muted">
           {data.votedCount} of {data.memberCount} voted
         </span>
         {data.canRedeal && (
-          <button className="text-white/50 underline" onClick={() => redeal({ weekId: data.week!._id }).catch((e) => setErr(errMsg(e)))}>
-            Redeal
+          <button className="font-semibold text-muted underline" onClick={() => redeal({ weekId: data.week!._id }).catch((e) => setErr(errMsg(e)))}>
+            Redeal cards
           </button>
         )}
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-4 space-y-4">
         {data.candidates.map((c) =>
           c.card ? (
             <Card
@@ -91,8 +115,8 @@ function Draft({ squadId }: { squadId: Id<"squads"> }) {
               card={c.card as CardData}
               footer={
                 <div className="flex gap-2">
-                  <VoteBtn on={c.myVote === false} label="No" onClick={() => vote({ candidateId: c._id, yes: false }).catch((e) => setErr(errMsg(e)))} />
-                  <VoteBtn on={c.myVote === true} label="Yes" yes onClick={() => vote({ candidateId: c._id, yes: true }).catch((e) => setErr(errMsg(e)))} />
+                  <VoteBtn on={c.myVote === false} label="Nah" onClick={() => vote({ candidateId: c._id, yes: false }).catch((e) => setErr(errMsg(e)))} />
+                  <VoteBtn on={c.myVote === true} label="I'm in" onClick={() => vote({ candidateId: c._id, yes: true }).catch((e) => setErr(errMsg(e)))} />
                 </div>
               }
               progress={{ n: c.yesCount, m: data.memberCount }}
@@ -101,20 +125,14 @@ function Draft({ squadId }: { squadId: Id<"squads"> }) {
         )}
       </div>
 
-      <div className="mt-8 rounded-3xl bg-white/[0.06] p-4 ring-1 ring-white/10">
-        <h2 className="text-lg font-semibold">Your forfeit</h2>
-        <p className="mt-1 text-sm text-white/50">Whoever finishes last draws one from the pool. Make it good.</p>
+      <div className="mt-8 rounded-3xl bg-surface p-5 ring-1 ring-line">
+        <h2 className="font-display text-xl font-extrabold">Your forfeit</h2>
+        <p className="mt-1 text-sm text-muted">Whoever finishes last on Saturday draws one from the pool. It might be yours. Make it good.</p>
         <div className="mt-3">
-          <Input
-            placeholder="e.g. Cold plunge, filmed"
-            value={forfeit}
-            maxLength={140}
-            onChange={(e) => setForfeit_(e.target.value)}
-            onBlur={saveForfeit}
-          />
+          <Input placeholder="e.g. Cold plunge, filmed" value={forfeit} maxLength={140} onChange={(e) => setForfeit_(e.target.value)} onBlur={saveForfeit} />
         </div>
         {forfeitDirty && (
-          <button className="mt-2 text-sm text-white/60 underline" onClick={saveForfeit}>
+          <button className="mt-2 text-sm font-semibold text-muted underline" onClick={saveForfeit}>
             Save forfeit
           </button>
         )}
@@ -122,31 +140,31 @@ function Draft({ squadId }: { squadId: Id<"squads"> }) {
 
       <ErrorText>{err}</ErrorText>
 
-      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-md bg-gradient-to-t from-black via-black/90 to-transparent p-4 pt-8">
+      <BottomBar>
         {data.isCreator ? (
           <Button onClick={doLock} disabled={busy || data.votedCount === 0}>
-            {busy ? "Locking…" : `Lock the week (${data.votedCount} voted)`}
+            {busy ? "Locking…" : `Lock the week · ${data.votedCount} voted`}
           </Button>
         ) : (
-          <p className="text-center text-sm text-white/50">
-            {myVotesIn === 6 ? "You're in. Waiting for the creator to lock." : `${myVotesIn}/6 voted`}
+          <p className="rounded-2xl bg-surface py-4 text-center text-sm font-semibold text-muted ring-1 ring-line">
+            {myVotesIn === data.candidates.length ? "You're in. Waiting for the squad to lock the week." : `${myVotesIn}/${data.candidates.length} voted`}
           </p>
         )}
-      </div>
+      </BottomBar>
     </Screen>
   );
 }
 
-function VoteBtn({ on, label, yes, onClick }: { on: boolean; label: string; yes?: boolean; onClick: () => void }) {
-  const onCls = yes ? "bg-emerald-400 text-black ring-emerald-400" : "bg-white/80 text-black ring-white/80";
+function VoteBtn({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold ring-1 transition active:scale-[0.97] ${
-        on ? onCls : "bg-white/[0.06] text-white ring-white/10"
+      className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-bold transition active:scale-[0.97] ${
+        on ? "bg-card-ink text-white" : "bg-white/40 text-card-ink"
       }`}
     >
+      {on ? "✓ " : ""}
       {label}
     </button>
   );
