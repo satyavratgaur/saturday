@@ -41,6 +41,23 @@ function Draft({ squadId }: { squadId: Id<"squads"> }) {
     if (data?.week && data.week.status !== "drafting") router.replace(`/s/${squadId}`);
   }, [data, router, squadId]);
 
+  if (err && (!data || data.week === null))
+    return (
+      <Screen title="Something went wrong" back="/squads">
+        <p className="text-muted">We couldn&apos;t deal this week&apos;s cards.</p>
+        <ErrorText>{err}</ErrorText>
+        <div className="mt-6">
+          <Button
+            onClick={() => {
+              setErr("");
+              void ensureDraft({ squadId }).catch((e) => setErr(errMsg(e)));
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      </Screen>
+    );
   if (!data || data.week === null || data.week.status !== "drafting") return <Spinner />;
 
   const myVotesIn = data.candidates.filter((c) => c.myVote !== null).length;

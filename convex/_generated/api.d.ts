@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as cardPool from "../cardPool.js";
 import type * as cards from "../cards.js";
 import type * as http from "../http.js";
 import type * as lib from "../lib.js";
@@ -26,6 +27,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  cardPool: typeof cardPool;
   cards: typeof cards;
   http: typeof http;
   lib: typeof lib;

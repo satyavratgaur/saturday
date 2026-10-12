@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireMember, currentWeek, INTERESTS } from "./lib";
+import { ensureCardPool } from "./cards";
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 
@@ -17,6 +18,7 @@ function shuffle<T>(arr: T[]) {
 // 6 candidates: 2 from each of the squad's 3 interests (each pair has 2 different types).
 // Older squads without interests fall back to the top 3 member interests.
 async function dealCards(ctx: MutationCtx, squadId: Id<"squads">) {
+  await ensureCardPool(ctx);
   const squad = await ctx.db.get(squadId);
   let top: string[] = (squad?.interests ?? []).filter((i) => (INTERESTS as readonly string[]).includes(i)).slice(0, 3);
   if (top.length === 0) {
@@ -67,7 +69,7 @@ export const ensureDraft = mutation({
       endsAt: now + WEEK_MS,
     });
     const dealt = await dealCards(ctx, squadId);
-    if (dealt.length < 3) throw new Error("Card pool is empty. Run the seed.");
+    if (dealt.length < 3) throw new Error("Couldn't deal cards for this squad. Try again in a moment.");
     for (let i = 0; i < dealt.length; i++) {
       await ctx.db.insert("candidates", { weekId, cardKey: dealt[i].key, dealOrder: i });
     }

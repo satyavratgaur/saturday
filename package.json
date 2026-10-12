@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "node scripts/seed.mjs",
+    "seed": "convex run cards:seed",
     "codegen": "convex codegen"
   },
   "dependencies": {

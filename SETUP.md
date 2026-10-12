@@ -19,8 +19,8 @@ npx convex env set AUTH_RESEND_KEY re_xxxxxxxx
 #    already wired alongside magic link).
 #    02:00 FALLBACK if email is dead:   npx convex env set AUTH_MODE anonymous
 
-# 4. Seed the 40 cards
-npm run seed
+# 4. Cards load automatically on the first deal. After editing convex/cardPool.ts:
+npm run seed            # dev;  add -- --prod for production
 
 # 5. Run the app
 npm run dev
